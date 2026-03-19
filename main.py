@@ -1,33 +1,25 @@
 import sys
 import os
-
-# บังคับให้ Python มองเห็นโฟลเดอร์ปัจจุบันเป็น Root
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
+# เพิ่ม Path เพื่อให้มองเห็นโฟลเดอร์ app และ tools
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, Depends, Request, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-
-# ตอนนี้ Python จะมองเห็น app และ tools แล้ว
-from app import database, models
+from app import database, models # เรียกใช้ผ่านชื่อโฟลเดอร์
 from tools import notifier, analyzer 
 from dotenv import load_dotenv
-import json
 
-# ... (โค้ดส่วนที่เหลือ) ...
-
-# เริ่มต้นระบบ
 load_dotenv()
 database.init_db()
-app = FastAPI(title="MASGISTICS - WAT Framework")
+app = FastAPI(title="MASGISTICS - Unit 4 Operational")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- ROUTES ต่อจากนี้เหมือนเดิม ---
+# --- วาง ROUTES ของคุณต่อจากนี้ (admin_dashboard, payloads, ฯลฯ) ---
 @app.get("/")
 def root(): return RedirectResponse(url="/profile")
 
@@ -45,7 +37,7 @@ def admin_dashboard(request: Request, db: Session = Depends(database.get_db)):
         "verified_carriers": [u for u in users if u.is_verified]
     })
 
-# ... (Route อื่นๆ ตามโค้ดล่าสุดของคุณ) ...
+# ... (Route อื่นๆ ตามโค้ดเดิมของคุณ) ...
 
 if __name__ == "__main__":
     import uvicorn
