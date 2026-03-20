@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MASGISTICS | Join the Network</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #050505; color: #e5e5e5; font-family: sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+        input, select { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: white !important; }
+    </style>
+</head>
+<body class="p-6 flex flex-col items-center justify-center min-h-screen">
+    
+    <div class="mb-8 text-center">
+        <h1 class="text-3xl font-black tracking-tighter uppercase italic text-white">MASGISTICS</h1>
+        <p class="text-[10px] tracking-[0.3em] text-white/40 uppercase">Personnel Onboarding Portal</p>
+    </div>
+
+    <div class="glass-card p-8 w-full max-w-md border-t-4 border-t-white">
+        <h2 class="text-xl font-bold mb-6 uppercase tracking-widest text-center italic">Join the Fleet</h2>
+        
+        <form action="/initiate-onboarding" method="post" class="space-y-6">
+            <div>
+                <label class="text-[10px] uppercase text-white/40 font-bold">Full Name (ชื่อ-นามสกุล)</label>
+                <input type="text" name="name" class="w-full p-4 mt-1 rounded outline-none focus:border-white" required>
+            </div>
+
+            <div>
+                <label class="text-[10px] uppercase text-white/40 font-bold">Phone Number (เบอร์โทรศัพท์)</label>
+                <input type="tel" name="phone" class="w-full p-4 mt-1 rounded outline-none focus:border-white" required>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] uppercase text-white/40 font-bold">Truck Type</label>
+                    <select name="truck_type" class="w-full p-4 mt-1 rounded text-black font-bold">
+                        <option>6 ล้อ</option>
+                        <option>10 ล้อ</option>
+                        <option>เทรลเลอร์</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase text-white/40 font-bold">Base Province</label>
+                    <input type="text" name="province" placeholder="จังหวัด" class="w-full p-4 mt-1 rounded outline-none" required>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-white text-black py-5 mt-4 text-xs font-bold uppercase tracking-[0.2em] hover:bg-gray-200 transition shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                Initiate Onboarding
+            </button>
+        </form>
+    </div>
+
+    <p class="mt-8 text-[10px] text-white/20 uppercase tracking-widest">Powered by Masgistics Orbital Network</p>
+
+</body>
+</html>
+
+<!-- ส่วนเลือกประเภทผู้ใช้งาน 4 กลุ่ม -->
+<div>
+    <label class="text-[10px] uppercase text-white/40 font-bold tracking-widest">User Category (ประเภทผู้ใช้งาน)</label>
+    <select name="user_role" class="w-full p-4 mt-1 rounded text-black font-bold outline-none border-none">
+        <option value="shipper">เจ้าของวัสดุ (Material Owner)</option>
+        <option value="fleet">เจ้าของกลุ่มรถ (Fleet Owner)</option>
+        <option value="individual">เจ้าของรถรายย่อย (Individual Carrier)</option>
+        <option value="agency">นายหน้า/ตัวแทน (Logistics Agency)</option>
+    </select>
+</div>
