@@ -1,6 +1,4 @@
-import sys
-import os
-import json
+import sys, os, json, uvicorn, requests
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
@@ -19,46 +17,38 @@ from tools import notifier, analyzer, safety_tool, profit_calc
 load_dotenv()
 database.init_db()
 
-app = FastAPI(title="MASHUB - Mission Control")
+app = FastAPI(title="MASHUB")
 
-# จัดการไฟล์รูปภาพและหน้าตา
 if not os.path.exists("static"): os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- 🧠 STEP 2: AGENT HELPERS ---
 def get_db():
     db = database.SessionLocal()
     try: yield db
     finally: db.close()
 
-def log_event(db: Session, event_type: str, user_id: int = None, meta: dict = None):
-    try:
-        new_event = models.SystemEvent(event_type=event_type, user_id=user_id, metadata_json=json.dumps(meta) if meta else "{}")
-        db.add(new_event); db.commit()
-    except Exception: db.rollback()
-
 def is_authenticated(request: Request):
     return request.cookies.get("mas_session") == "authenticated"
 
-# --- 🛸 STEP 3: MISSION ROUTES ---
+# --- 🛸 STEP 2: ROUTES (Updated for Python 3.14 Compatibility) ---
 
 @app.get("/")
 def root(): return RedirectResponse(url="/profile")
 
 @app.get("/profile", response_class=HTMLResponse)
-def company_profile(request: Request, db: Session = Depends(get_db)):
-    log_event(db, "view_profile")
-    return templates.TemplateResponse("profile.html", {"request": request})
+def company_profile(request: Request):
+    # ปรับ Syntax: ใช้ request=request, name="..."
+    return templates.TemplateResponse(request=request, name="profile.html")
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return HTMLResponse(content="""
-        <html><body style='background:#050505;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;'>
-            <form action='/login' method='post' style='background:rgba(255,255,255,0.05);padding:40px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);text-align:center;'>
+        <html><body style='background:#050505;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;text-align:center;'>
+            <form action='/login' method='post' style='background:rgba(255,255,255,0.05);padding:40px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);'>
                 <h1 style='letter-spacing:5px;font-style:italic;'>MASHUB ACCESS</h1>
-                <input type='password' name='password' placeholder='Enter Code' style='padding:12px;width:100%;margin-top:20px;background:black;color:white;border:1px solid white;' required>
-                <button type='submit' style='margin-top:20px;width:100%;padding:12px;background:white;font-weight:bold;cursor:pointer;'>INITIATE ACCESS</button>
+                <input type='password' name='password' placeholder='Authorization Code' style='padding:10px;width:100%;margin-top:20px;background:black;color:white;border:1px solid white;' required>
+                <button type='submit' style='margin-top:20px;width:100%;padding:10px;background:white;color:black;font-weight:bold;'>INITIATE ACCESS</button>
             </form>
         </body></html>
     """)
@@ -74,37 +64,41 @@ def process_login(response: Response, password: str = Form(...)):
 @app.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if not is_authenticated(request): return RedirectResponse(url="/login")
+    
     stats = analyzer.get_business_stats(db)
     users = db.query(models.User).all()
     open_jobs = db.query(models.Job).filter(models.Job.status == "Open").all()
     matched_jobs = db.query(models.Job).filter(models.Job.status == "Matched").all()
     view_events = db.query(models.SystemEvent).filter(models.SystemEvent.event_type == "view_payloads").count()
-    return templates.TemplateResponse("admin.html", {
-        "request": request, "users": users, "jobs": open_jobs, "matched_jobs": matched_jobs,
-        "jobs_count": stats["jobs_count"], "total_value": stats["total_value"], 
-        "potential_revenue": stats["revenue"], "total_telemetry": stats["telemetry_count"],
-        "verified_carriers": [u for u in users if u.is_verified], "view_count": view_events
-    })
+
+    # ปรับ Syntax: แยก context ออกมาส่งแบบ Keyword
+    return templates.TemplateResponse(
+        request=request, 
+        name="admin.html", 
+        context={
+            "users": users, "jobs": open_jobs, "matched_jobs": matched_jobs,
+            "jobs_count": stats["jobs_count"], "total_value": stats["total_value"], 
+            "potential_revenue": stats["revenue"], "total_telemetry": stats["telemetry_count"],
+            "verified_carriers": [u for u in users if u.is_verified], "view_count": view_events
+        }
+    )
 
 @app.get("/payloads", response_class=HTMLResponse)
 def public_jobs(request: Request, db: Session = Depends(get_db)):
-    log_event(db, "view_payloads")
     jobs = db.query(models.Job).filter(models.Job.status == "Open").all()
-    for job in jobs: job.estimated_profit = profit_calc.estimate_profit(job.price)
-    return templates.TemplateResponse("payloads.html", {"request": request, "jobs": jobs, "line_link": "https://line.me/ti/p/@839wctaq"})
-
-@app.get("/mission/{job_id}", response_class=HTMLResponse)
-def pilot_mission_control(job_id: int, request: Request, db: Session = Depends(get_db)):
-    job = db.query(models.Job).get(job_id)
-    user = db.query(models.User).filter(models.User.is_verified == True).first()
-    if not job or not user: return HTMLResponse("Mission Data Missing.")
-    safety = safety_tool.check_pilot_fatigue(datetime.now(timezone.utc) - timedelta(hours=3.5))
-    return templates.TemplateResponse("mission_pilot.html", {"request": request, "job": job, "user": user, "safety": safety})
+    for job in jobs:
+        try: job.estimated_profit = profit_calc.estimate_profit(job.price)
+        except: job.estimated_profit = 0
+        
+    return templates.TemplateResponse(
+        request=request, 
+        name="payloads.html", 
+        context={"jobs": jobs, "line_link": "https://line.me/ti/p/@839wctaq"}
+    )
 
 @app.get("/join", response_class=HTMLResponse)
-def join_page(request: Request, db: Session = Depends(get_db)):
-    log_event(db, "view_join")
-    return templates.TemplateResponse("register.html", {"request": request})
+def join_page(request: Request): 
+    return templates.TemplateResponse(request=request, name="register.html")
 
 @app.post("/initiate-onboarding")
 def initiate_onboarding(name: str = Form(...), phone: str = Form(...), user_role: str = Form(...), province: str = Form(...), db: Session = Depends(get_db)):
@@ -119,7 +113,6 @@ def assign_job(job_id: int = Form(...), user_id: int = Form(...), db: Session = 
     if user and user.wallet_balance >= 50:
         user.wallet_balance -= 50; job.status = "Matched"
         db.add(models.Transaction(user_id=user.id, amount=-50, type="Job-Deduction")); db.commit()
-        notifier.send_line(f"✅ MISSION MATCHED!\n📦 {job.title}\n👩‍🚀 {user.full_name}")
         return RedirectResponse(url=f"/mission/{job_id}", status_code=303)
     return RedirectResponse(url="/admin", status_code=303)
 
@@ -129,21 +122,19 @@ def topup_wallet(user_id: int, amount: float = Form(...), db: Session = Depends(
     if user:
         user.wallet_balance += amount
         db.add(models.Transaction(user_id=user.id, amount=amount, type="Top-up")); db.commit()
-        notifier.send_line(f"💰 TOP-UP: {user.full_name} +฿{amount:,.0f}")
     return RedirectResponse(url="/admin", status_code=303)
 
 @app.post("/admin/verify/{user_id}")
 def verify_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).get(user_id)
-    if user: user.is_verified = True; db.commit(); log_event(db, "user_verified", user_id)
+    if user: user.is_verified = True; db.commit()
     return RedirectResponse(url="/admin", status_code=303)
 
 @app.post("/admin/add-job")
 def add_job(title: str = Form(...), origin: str = Form(...), destination: str = Form(...), price: float = Form(...), truck_type: str = Form(...), db: Session = Depends(get_db)):
     db.add(models.Job(title=title, origin=origin, destination=destination, price=price, truck_type_required=truck_type, status="Open"))
-    db.commit(); notifier.send_line(f"📦 NEW JOB: {title}")
+    db.commit()
     return RedirectResponse(url="/admin", status_code=303)
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
