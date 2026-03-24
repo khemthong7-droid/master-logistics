@@ -8,10 +8,15 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, nullable=False)
-    phone = Column(String, unique=True, index=True)
-    role = Column(String, default="contractor")
+    phone = Column(String, unique=True)
+    role = Column(String) # shipper, fleet, individual, agency
     is_verified = Column(Boolean, default=False)
     wallet_balance = Column(Float, default=0.0)
+    
+    # ความสามารถเพิ่มเติมของ MASHUB
+    asset_type = Column(String) 
+    rating_score = Column(Float, default=5.0)
+    
     transactions = relationship("Transaction", back_populates="user")
 
 class Job(Base):
@@ -20,9 +25,9 @@ class Job(Base):
     title = Column(String, nullable=False)
     origin = Column(String, nullable=False)
     destination = Column(String, nullable=False)
-    truck_type_required = Column(String)
     price = Column(Float)
-    status = Column(String, default="Open")
+    status = Column(String, default="Open") # Open, Matched, Completed
+    truck_type_required = Column(String)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Transaction(Base):
@@ -30,7 +35,7 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     amount = Column(Float)
-    type = Column(String)
+    type = Column(String) # Top-up, Job-Deduction
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     user = relationship("User", back_populates="transactions")
 
